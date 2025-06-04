@@ -62,10 +62,38 @@
         password
       })
       if (error) throw error
+
+      // Get the user after successful sign in
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser) throw new Error('No user found after sign in')
+
+      // Check if user record exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('auth_id', currentUser.id)
+        .single()
+
+      // If no user record exists, create one with default points
+      if (!existingUser) {
+        const { error: createError } = await supabase
+          .from('users')
+          .insert([
+            {
+              auth_id: currentUser.id,
+              username: { en: currentUser.email?.split('@')[0] || 'Anonymous' },
+              points: 5
+            }
+          ])
+
+        if (createError) {
+          console.error('Error creating user record:', createError)
+          throw new Error('Error creating user profile')
+        }
+      }
       
-      // Close the auth form and redirect to home
+      // Close the auth form
       showAuthForm = false
-      window.location.href = '/'
     } catch (error) {
       console.error('Error signing in:', error)
       alert('Error signing in: ' + (error instanceof Error ? error.message : 'Unknown error'))
@@ -97,51 +125,26 @@
 
   async function handleSignUp() {
     try {
-      // Check if username is available
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('username')
-        .eq('username->en', username)
-        .single()
-
-      if (existingUser) {
-        alert('Username is already taken. Please choose another one.')
-        return
-      }
-
-      // Sign up the user
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
           data: {
-            username: { en: username }
-          },
-          emailRedirectTo: `${window.location.origin}`
+            username: email.split('@')[0] // Store username in user metadata
+          }
         }
       })
-      if (signUpError) throw signUpError
 
-      // Create user record
-      if (authData.user) {
-        const { error: userError } = await supabase
-          .from('users')
-          .insert([
-            {
-              auth_id: authData.user.id,
-              username: { en: username },
-              points: 5
-            }
-          ])
+      if (error) throw error
 
-        if (userError) {
-          console.error('Error creating user record:', userError)
-          alert('Account created but there was an error setting up your profile. Please contact support.')
-          return
-        }
+      if (data?.user?.identities?.length === 0) {
+        alert('This email is already registered. Please sign in instead.')
+        return
       }
 
-      alert('Please check your email for the confirmation link!')
+      alert('Please check your email for the confirmation link! After confirming, you can sign in.')
+      showAuthForm = false
     } catch (error) {
       console.error('Error signing up:', error)
       alert('Error signing up: ' + (error instanceof Error ? error.message : 'Unknown error'))

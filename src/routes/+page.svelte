@@ -192,6 +192,7 @@
 </script>
 
 <div class="space-y-8">
+  <p>so I hate programming and I hate auth. if you want a contest, dm me on discord with: (1) contest name, (2) all contestant names and whether or not they're real people. </p>
   <h1 class="text-3xl font-bold">Active Contests</h1>
 
   {#if error}
