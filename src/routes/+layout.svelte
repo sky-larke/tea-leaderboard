@@ -132,9 +132,12 @@
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex justify-between h-16">
         <div class="flex items-center">
-          <a href="/" class="text-xl font-bold">Tea Leaderboard</a>
           {#if user}
+          <a href="/" class="text-xl font-bold">You are logged in as {user?.email}</a>
+
             <a href="/history" class="ml-6 text-gray-600 hover:text-gray-900">History</a>
+          {:else}
+            <a href="/" class="ml-6 text-gray-600 hover:text-gray-900">Tea Leaderboard</a>
           {/if}
         </div>
         <div class="flex items-center">
