@@ -2,17 +2,21 @@
   import { onMount } from 'svelte'
   import { supabase } from '$lib/supabase'
   import type { Contest, Entry, User } from '$lib/supabase'
+	import { beforeNavigate } from '$app/navigation';
 
   let contests: Contest[] = []
   let entries: Entry[] = []
   let users: User[] = []
   let faithActions: any[] = []
   let isLoading = true
+  let error: string | null = null
   let faithAmounts: { [key: string]: number } = {}
   let userFaithActions: { [key: string]: boolean } = {}
 
   onMount(async () => {
     try {
+      console.log('Starting data fetch...')
+      
       // Fetch all data in parallel
       const [contestsResponse, entriesResponse, usersResponse, faithActionsResponse] = await Promise.all([
         supabase.from('contests').select('*').eq('ongoing', true),
@@ -21,11 +25,17 @@
         supabase.from('faith_actions').select('*')
       ])
 
-      console.log('Responses:', {
-        contests: contestsResponse.data,
-        entries: entriesResponse.data,
-        users: usersResponse.data,
-        faithActions: faithActionsResponse.data
+      // Check for errors in responses
+      if (contestsResponse.error) throw new Error(`Contests error: ${contestsResponse.error.message}`)
+      if (entriesResponse.error) throw new Error(`Entries error: ${entriesResponse.error.message}`)
+      if (usersResponse.error) throw new Error(`Users error: ${usersResponse.error.message}`)
+      if (faithActionsResponse.error) throw new Error(`Faith actions error: ${faithActionsResponse.error.message}`)
+
+      console.log('Raw responses:', {
+        contests: contestsResponse,
+        entries: entriesResponse,
+        users: usersResponse,
+        faithActions: faithActionsResponse
       })
 
       contests = contestsResponse.data || []
@@ -33,13 +43,21 @@
       users = usersResponse.data || []
       faithActions = faithActionsResponse.data || []
 
+      if (contests.length === 0) {
+        console.warn('No contests found')
+      }
+
       // Initialize faith amounts for each contest
       contests.forEach(contest => {
         faithAmounts[contest.id] = 1
       })
 
       // Check faith actions for current user
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        console.warn('Error getting current user:', userError)
+      }
+      
       if (currentUser) {
         for (const contest of contests) {
           for (const entry of getContestEntries(contest.id)) {
@@ -53,19 +71,16 @@
         }
       }
 
-      console.log('Data loaded:', {
-        contests: contests,
-        entries: entries,
-        users: users,
-        faithActions: faithActions,
-        userFaithActions,
+      console.log('Processed data:', {
         contestsCount: contests.length,
         entriesCount: entries.length,
         usersCount: users.length,
-        faithActionsCount: faithActions.length
+        faithActionsCount: faithActions.length,
+        userFaithActions
       })
-    } catch (error) {
-      console.error('Error loading data:', error)
+    } catch (err) {
+      console.error('Error loading data:', err)
+      error = err instanceof Error ? err.message : 'An unknown error occurred'
     } finally {
       isLoading = false
     }
@@ -179,8 +194,19 @@
 <div class="space-y-8">
   <h1 class="text-3xl font-bold">Active Contests</h1>
 
-  {#if isLoading}
-    <p>Loading...</p>
+  {#if error}
+    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+      <p class="font-medium">Error loading data</p>
+      <p class="text-sm">{error}</p>
+    </div>
+  {:else if isLoading}
+    <div class="flex items-center justify-center p-8">
+      <p class="text-gray-500">Loading contests...</p>
+    </div>
+  {:else if contests.length === 0}
+    <div class="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded">
+      <p>No active contests found</p>
+    </div>
   {:else}
     {#each contests as contest}
       <div class="bg-white shadow rounded-lg p-6">
@@ -223,25 +249,49 @@
                   </button>
                 </div>
               {:else}
-                {#if getFaithActionsForUser(contest.id, entry.player_id).faith > 0}
-                  <p class="text-sm text-gray-500">You already have {getFaithActionsForUser(contest.id, entry.player_id).faith} dayi neipiaos worth of faith in this person.</p>
-                {:else}
-                  <p class="text-sm text-gray-500">You already have {getFaithActionsForUser(contest.id, entry.player_id).noFaith} dayi neipiaos worth of lack of faith in this person.</p>
-                {/if}
+              <div class="text-sm text-gray-500">
+                <p>You aren't allowed to change your mind. That would be boring.</p>
 
+                {#if getFaithActionsForUser(contest.id, entry.player_id).faith > 0}
+                  <p>You already have {getFaithActionsForUser(contest.id, entry.player_id).faith} dayi neipiaos worth of faith in this person.</p>
+                {:else}
+                  <p>You already have {getFaithActionsForUser(contest.id, entry.player_id).noFaith} dayi neipiaos worth of lack of faith in this person.</p>
+                {/if}
+              </div>
               {/if}
 
               <div class="mt-4">
-                <h4 class="text-sm font-medium text-gray-700 mb-2">Faith Actions</h4>
-                <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
-                  <div class="flex space-x-4">
-                    <span class="text-green-600">
-                      Faith: {getFaithActionsForUser(contest.id, entry.player_id).faith} dayi neipiaos
-                    </span>
-                    <span class="text-red-600">
-                      No Faith: {getFaithActionsForUser(contest.id, entry.player_id).noFaith} dayi neipiaos
-                    </span>
-                  </div>
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Public Opinion</h4>
+                <div class="bg-gray-50 p-4 rounded space-y-2">
+                  {#if true}
+                    {@const faithTotal = getFaithActionsForUser(contest.id, entry.player_id).faith}
+                    {@const noFaithTotal = getFaithActionsForUser(contest.id, entry.player_id).noFaith}
+                    {@const isFaithWinning = faithTotal > noFaithTotal}
+                    {@const isNoFaithWinning = noFaithTotal > faithTotal}
+                    {@const isTied = faithTotal === noFaithTotal}
+                    
+                    <div class="flex items-center">
+                      <span class="text-green-600 flex items-center">
+                        Faith: {faithTotal} dayi neipiaos
+                        {#if isFaithWinning}
+                          <span class="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Winning</span>
+                        {/if}
+                      </span>
+                    </div>
+                    <div class="flex items-center">
+                      <span class="text-red-600 flex items-center">
+                        No Faith: {noFaithTotal} dayi neipiaos
+                        {#if isNoFaithWinning}
+                          <span class="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">Winning</span>
+                        {/if}
+                      </span>
+                    </div>
+                    {#if isTied}
+                      <div class="text-center text-gray-500 text-sm mt-1">
+                        Currently tied
+                      </div>
+                    {/if}
+                  {/if}
                 </div>
               </div>
             </div>
