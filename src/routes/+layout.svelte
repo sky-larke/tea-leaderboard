@@ -57,21 +57,28 @@
 
   async function handleSignIn() {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       })
-      if (error) throw error
+      
+      if (error) {
+        console.error('Error signing in:', error)
+        alert('Error signing in: ' + error.message)
+        return
+      }
 
-      // Get the user after successful sign in
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (!currentUser) throw new Error('No user found after sign in')
+      if (!data.user) {
+        console.error('No user returned after sign in')
+        alert('Error signing in: No user data returned')
+        return
+      }
 
       // Check if user record exists
       const { data: existingUser } = await supabase
         .from('users')
         .select('*')
-        .eq('auth_id', currentUser.id)
+        .eq('auth_id', data.user.id)
         .single()
 
       // If no user record exists, create one with default points
@@ -80,23 +87,24 @@
           .from('users')
           .insert([
             {
-              auth_id: currentUser.id,
-              username: { en: currentUser.email?.split('@')[0] || 'Anonymous' },
+              auth_id: data.user.id,
+              username: { en: data.user.email?.split('@')[0] || 'Anonymous' },
               points: 5
             }
           ])
 
         if (createError) {
           console.error('Error creating user record:', createError)
-          throw new Error('Error creating user profile')
+          alert('Error creating user profile: ' + createError.message)
+          return
         }
       }
       
       // Close the auth form
       showAuthForm = false
     } catch (error) {
-      console.error('Error signing in:', error)
-      alert('Error signing in: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      console.error('Unexpected error during sign in:', error)
+      alert('Unexpected error during sign in: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 
