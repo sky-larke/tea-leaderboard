@@ -36,10 +36,17 @@
       users = usersData || []
 
       // Fetch user's faith actions
-      const { data: faithActionsData } = await supabase
+      const { data: faithActionsData, error: faithError } = await supabase
         .from('faith_actions')
         .select('*')
         .eq('user_id', user.id)
+
+      console.log('Fetching faith actions for user:', {
+        userId: user.id,
+        faithActions: faithActionsData,
+        error: faithError
+      })
+
       faithActions = faithActionsData || []
     } catch (error) {
       console.error('Error in onMount:', error)
@@ -68,7 +75,7 @@
 
   function getEntryResult(contestId: string, targetId: string) {
     const entry = entries.find(e => 
-      e.contest_id === contestId && 
+      e.contest === contestId && 
       e.player_id === targetId
     )
     return entry?.correctness
@@ -86,8 +93,9 @@
 
   function getFaithActionPoints(faithAction: FaithAction) {
     const result = getFaithActionResult(faithAction)
-    if (result === 'Ongoing' || result === 'Pending') return '-1'
-    return result === 'Correct' ? '+0' : '-1'
+    const betAmount = faithAction.amount || 1
+    if (result === 'Ongoing' || result === 'Pending') return `-${betAmount} (pending)`
+    return result === 'Correct' ? `+${betAmount}` : `-${betAmount}`
   }
 </script>
 
@@ -110,7 +118,7 @@
                 <div>
                   <h3 class="font-medium">Faith Action on {getUserName(action.target_id)}</h3>
                   <p class="text-sm text-gray-500">
-                    Your faith: {action.correctness ? 'Had faith' : 'No faith'}
+                    Your faith: {action.correctness ? 'Yes' : 'No'} 
                   </p>
                 </div>
                 <div class="text-right">
@@ -121,7 +129,7 @@
                     {getFaithActionResult(action)}
                   </span>
                   <p class="text-sm font-medium mt-1">
-                    Points: {getFaithActionPoints(action)}
+                    Dayi neipiaos: {action.amount || 1}
                   </p>
                 </div>
               </div>

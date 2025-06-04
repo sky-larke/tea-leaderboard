@@ -36,4 +36,5 @@ export type FaithAction = {
   target_id: string
   contest_id: string
   correctness: boolean
+  amount: number
 } 
