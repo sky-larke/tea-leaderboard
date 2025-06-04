@@ -59,6 +59,10 @@
         password
       })
       if (error) throw error
+      
+      // Close the auth form and redirect to home
+      showAuthForm = false
+      window.location.href = '/'
     } catch (error) {
       console.error('Error signing in:', error)
       alert('Error signing in: ' + (error instanceof Error ? error.message : 'Unknown error'))

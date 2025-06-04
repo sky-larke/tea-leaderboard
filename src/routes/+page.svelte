@@ -245,7 +245,7 @@
                     on:click={() => placeFaithAction(contest.id, entry.player_id, false)}
                     class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                   >
-                    I have no faith ({faithAmounts[contest.id]} dayi neipiaos)
+                    No faith ({faithAmounts[contest.id]} dayi neipiaos)
                   </button>
                 </div>
               {:else}
