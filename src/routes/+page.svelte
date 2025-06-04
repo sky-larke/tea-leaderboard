@@ -144,7 +144,7 @@
     }
 
     if (!userData || typeof userData.points !== 'number' || userData.points < amount) {
-      alert(`Not enough dayi neipiaos! You need ${amount} but only have ${userData?.points || 0}`)
+      alert(`Not enough dayi neipiaos! You need ${amount} but only have ${userData?.points || 0}. Try having faith in the correct people for more dayi neipiaos.`)
       return
     }
 
@@ -229,7 +229,7 @@
               <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-medium">{getUserName(entry.player_id)}</h3>
                 <span class="text-sm text-gray-500">
-                  Current Faith Actions: {getFaithActionsForUser(contest.id, entry.player_id).faith + getFaithActionsForUser(contest.id, entry.player_id).noFaith}
+                  {getFaithActionsForUser(contest.id, entry.player_id).faith + getFaithActionsForUser(contest.id, entry.player_id).noFaith} people have weighed in.
                 </span>
               </div>
 

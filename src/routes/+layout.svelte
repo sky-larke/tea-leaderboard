@@ -5,6 +5,7 @@
 
   let user: any = null
   let userPoints: number | null = null
+  let userData: any = null
   let email = ''
   let password = ''
   let username = ''
@@ -17,16 +18,17 @@
     const { data: { session } } = await supabase.auth.getSession()
     user = session?.user ?? null
     if (user) {
-      await checkUserPoints()
+      await checkUserData()
     }
 
     // Listen for auth changes
     const { data: { subscription } } = await supabase.auth.onAuthStateChange(async (_event, session) => {
       user = session?.user ?? null
       if (user) {
-        await checkUserPoints()
+        await checkUserData()
       } else {
         userPoints = null
+        userData = null
       }
     })
 
@@ -35,20 +37,21 @@
     }
   })
 
-  async function checkUserPoints() {
+  async function checkUserData() {
     if (!user) return
 
     const { data, error } = await supabase
       .from('users')
-      .select('points')
+      .select('*')
       .eq('auth_id', user.id)
       .single()
 
     if (error) {
-      console.error('Error fetching points:', error)
+      console.error('Error fetching user data:', error)
       return
     }
 
+    userData = data
     userPoints = data?.points ?? null
   }
 
@@ -131,17 +134,21 @@
   }
 </script>
 
+<svelte:head>
+  <title>Tea Leaderboard</title>
+</svelte:head>
+
 <div class="min-h-screen bg-gray-100">
   <nav class="bg-white shadow-lg">
     <div class="max-w-7xl mx-auto px-4">
       <div class="flex justify-between h-16">
         <div class="flex items-center">
           {#if user}
-          <a href="/" class="text-xl font-bold">You are logged in as {user?.email}</a>
-
-            <a href="/history" class="ml-6 text-gray-600 hover:text-gray-900">History</a>
+            <a href="/" class="text-xl font-bold">Tea Leaderboard</a>
+            <span class="ml-4 text-gray-600">Welcome, {userData?.username?.en || user.email}</span>
+            <a href="/history" class="ml-6 text-gray-600 hover:text-gray-900">My Faith Actions</a>
           {:else}
-            <a href="/" class="ml-6 text-gray-600 hover:text-gray-900">Tea Leaderboard</a>
+            <a href="/" class="text-xl font-bold">Tea Leaderboard</a>
           {/if}
         </div>
         <div class="flex items-center">
