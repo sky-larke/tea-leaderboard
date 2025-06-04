@@ -1,36 +1,39 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { supabase } from '$lib/supabase'
-  import type { Contest, Entry } from '$lib/supabase'
+  import type { Contest, Entry, User } from '$lib/supabase'
 
   let contests: Contest[] = []
   let entries: Entry[] = []
+  let users: User[] = []
   let isLoading = true
 
   onMount(async () => {
     try {
-      // Only fetch contests and entries, no auth
-      const { data: contestsData, error: contestsError } = await supabase
-        .from('contests')
-        .select('*')
-        .eq('ongoing', true)
+      // Fetch all data in parallel
+      const [contestsResponse, entriesResponse, usersResponse] = await Promise.all([
+        supabase.from('contests').select('*').eq('ongoing', true),
+        supabase.from('entries').select('*'),
+        supabase.from('users').select('id, username')
+      ])
 
-      console.log('Contests response:', { data: contestsData, error: contestsError })
+      console.log('Responses:', {
+        contests: contestsResponse.data,
+        entries: entriesResponse.data,
+        users: usersResponse.data
+      })
 
-      const { data: entriesData, error: entriesError } = await supabase
-        .from('entries')
-        .select('*')
-
-      console.log('Entries response:', { data: entriesData, error: entriesError })
-
-      contests = contestsData || []
-      entries = entriesData || []
+      contests = contestsResponse.data || []
+      entries = entriesResponse.data || []
+      users = usersResponse.data || []
 
       console.log('Data loaded:', {
         contests: contests,
         entries: entries,
+        users: users,
         contestsCount: contests.length,
-        entriesCount: entries.length
+        entriesCount: entries.length,
+        usersCount: users.length
       })
     } catch (error) {
       console.error('Error loading data:', error)
@@ -43,6 +46,12 @@
     const filtered = entries.filter(e => e.contest === contestId)
     console.log('Filtering entries for contest', contestId, ':', filtered)
     return filtered
+  }
+
+  function getUserName(playerId: string) {
+    const user = users.find(u => u.id === playerId)
+    console.log('Looking up user for playerId', playerId, ':', user)
+    return user?.username?.en || 'Anonymous'
   }
 </script>
 
@@ -60,7 +69,7 @@
           {#each getContestEntries(contest.id) as entry}
             <div class="border rounded-lg p-4">
               <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-medium">Entry {entry.player_id}</h3>
+                <h3 class="text-lg font-medium">{getUserName(entry.player_id)}</h3>
               </div>
             </div>
           {/each}
