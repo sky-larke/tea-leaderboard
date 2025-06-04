@@ -109,14 +109,38 @@
         return
       }
 
-      const { error } = await supabase.auth.signUp({
+      // Sign up the user
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          data: {
+            username: { en: username }
+          },
+          emailRedirectTo: `${window.location.origin}`
         }
       })
-      if (error) throw error
+      if (signUpError) throw signUpError
+
+      // Create user record
+      if (authData.user) {
+        const { error: userError } = await supabase
+          .from('users')
+          .insert([
+            {
+              auth_id: authData.user.id,
+              username: { en: username },
+              points: 5
+            }
+          ])
+
+        if (userError) {
+          console.error('Error creating user record:', userError)
+          alert('Account created but there was an error setting up your profile. Please contact support.')
+          return
+        }
+      }
+
       alert('Please check your email for the confirmation link!')
     } catch (error) {
       console.error('Error signing up:', error)
